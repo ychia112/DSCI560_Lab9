@@ -1,0 +1,9 @@
+PDF_DIR = "data/pdfs"
+PROCESSED_DIR = "data/processed"
+FAISS_PATH = "vectorstore/faiss.index"
+EMBED_MODEL = "all-MiniLM-L6-v2"   # sentence-transformers
+CHUNK_SIZE = 500
+CHUNK_OVERLAP = 50
+TOP_K = 5
+USE_SQLITE = True
+SQLITE_PATH = "db/metadata.sqlite"

@@ -1,0 +1,5 @@
+pypdf==5.0.1
+langchain-text-splitters==0.3.3
+SQLAlchemy==2.0.36
+python-dotenv==1.0.1
+tqdm==4.66.5
