@@ -1,1 +1,7 @@
 __pycache__/
+models/
+*.bin
+*.pt
+*.gguf
+*.safetensors
+.env
