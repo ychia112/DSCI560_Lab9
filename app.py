@@ -11,10 +11,56 @@ from model_engine.utils import check_vectorstore_exists
 from langchain_community.vectorstores import FAISS
 #from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_huggingface import HuggingFaceEmbeddings
+from model_engine.conversation import build_llm
 from dotenv import load_dotenv
 load_dotenv()
+import shutil
 
 CHUNKS_FILE = Path(PROCESSED_DIR) / "all_chunks.txt"
+
+def purge_langchain_store():
+    """Delete the LangChain FAISS folder so we never load stale data."""
+    p = Path(LANGCHAIN_FAISS_PATH)
+    if p.exists():
+        shutil.rmtree(p, ignore_errors=True)
+
+def load_vectorstore_for_chat():
+    """Load (or rebuild) the LangChain FAISS vectorstore once for answering."""
+    if not check_vectorstore_exists(LANGCHAIN_FAISS_PATH):
+        return rebuild_vectorstore()
+    embeddings = HuggingFaceEmbeddings(model_name=LANGCHAIN_EMBED_MODEL)
+    return FAISS.load_local(LANGCHAIN_FAISS_PATH, embeddings, allow_dangerous_deserialization=True)
+
+def answer_with_llm(question: str, model_choice: str = DEFAULT_LLM) -> str:
+    """
+    Use the freshly built FAISS via retrieve_only() for context,
+    then generate the final answer with the selected LLM (OpenAI, etc.).
+    """
+    try:
+        hits = retrieve_only(question, k=TOP_K)  # [(idx, score, chunk_text), ...]
+    except Exception as e:
+        return f"Retrieval error: {e}"
+
+    if not hits:
+        return "I don’t have enough information."
+
+    context = "\n\n".join([ch[:800] for _, _, ch in hits[:3]])
+    prompt = f"""
+You are a helpful assistant that answers based only on the provided context.
+
+Context:
+{context}
+
+Question: {question}
+Answer:
+""".strip()
+
+    try:
+        llm = build_llm(model_choice=model_choice)
+        resp = llm.invoke(prompt)
+        return resp.content.strip() if hasattr(resp, "content") else str(resp)
+    except Exception as e:
+        return f"Model error: {e}"
 
 def prepare_pipeline():
     # 1) PDF -> text
@@ -42,12 +88,9 @@ def main_cli(model_choice="openai"):
         prepare_pipeline()
         
     # Build or load LangChain vectorstore
-    print(f"Initializing LangChain vectorstore for [{model_choice}] ...")
-    if not check_vectorstore_exists(LANGCHAIN_FAISS_PATH):
-        vectorstore = rebuild_vectorstore()
-    else:
-        embeddings = HuggingFaceEmbeddings(model_name=LANGCHAIN_EMBED_MODEL)
-        vectorstore = FAISS.load_local(LANGCHAIN_FAISS_PATH, embeddings, allow_dangerous_deserialization=True)
+    print(f"Rebuilding LangChain vectorstore for [{model_choice}] ...")
+    purge_langchain_store()           # <--- nuke old index
+    vectorstore = rebuild_vectorstore()
         
     # # Build conversation chain
     # chain = build_conversation_chain(vectorstore, model_choice=model_choice)
@@ -90,6 +133,7 @@ def main_cli(model_choice="openai"):
         # ---------------------------------------------------------------------
 
 if __name__ == "__main__":
+    prepare_pipeline()
     parser = argparse.ArgumentParser(description="LLM Chatbot")
     parser.add_argument(
         "--model",

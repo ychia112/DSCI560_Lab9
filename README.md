@@ -46,3 +46,16 @@ python app.py
 ```
 
 make sure to install ```requirement.txt```
+
+
+## Open Chatbot Interface
+
+```bash
+pip install streamlit
+```
+
+```bash
+streamlit run app_streamlit.py
+```
+
+Upload any pdf, press Analyze, and ask questions!
