@@ -29,3 +29,20 @@ I've modified the app.py, there's a marked section that you might do:
 - Loading a open-source LLM
 - Using retrieved chunks as input context
 - Generate the chatbot's response
+
+
+## Run the Pipeline and chat bot
+
+.env settings:
+
+```bash
+# .env.example
+OPENAI_API_KEY=your_openai_api_key_here
+HUGGINGFACEHUB_API_TOKEN=your_huggingface_token_here
+```
+
+```bash
+python app.py
+```
+
+make sure to install ```requirement.txt```
