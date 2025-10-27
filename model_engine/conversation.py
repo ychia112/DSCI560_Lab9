@@ -3,6 +3,10 @@ from langchain_community.llms import HuggingFacePipeline, LlamaCpp
 #from langchain.memory import ConversationBufferMemory
 #from langchain.chains import ConversationalRetrievalChain
 from config import DEFAULT_LLM, TOP_K
+import warnings  # warning supressed for demo 
+warnings.filterwarnings("ignore", message="Token indices sequence length")
+warnings.filterwarnings("ignore", message="clean_up_tokenization_spaces")
+warnings.filterwarnings("ignore", message="`do_sample` is set to `False`")
 
 def build_llm(model_choice=DEFAULT_LLM):
     print(f"Initializing model backend: {model_choice}")
@@ -12,22 +16,24 @@ def build_llm(model_choice=DEFAULT_LLM):
         
     elif model_choice == "huggingface":
         llm = HuggingFacePipeline.from_model_id(
-            model_id="google/flan-t5-base",
-            task="text2text-generation",
-            model_kwargs={
-                "temperature": 0.2,
-                "repetition_penalty": 1.1
-            },
-            pipeline_kwargs={
-                "max_new_tokens": 256
-            }
-        )
+        model_id="google/flan-t5-small",
+        task="text2text-generation",
+        model_kwargs={
+            "repetition_penalty": 1.1
+        },
+        pipeline_kwargs={
+            "max_new_tokens": 256,
+            "do_sample": True,
+            "temperature": 0.7,
+            "clean_up_tokenization_spaces": True
+        }
+    )
         
     elif model_choice == "llama":
         llm = LlamaCpp(
             model_path="models/llama-2-7b-chat.Q4_K_M.gguf",
-            n_ctx=4096,
-            n_batch=512,
+            n_ctx=512,
+            n_batch=128,
             temperature=0.2,
             repeat_penalty=1.1,
             verbose=False,
@@ -67,18 +73,41 @@ def run_conversation(vectorstore, model_choice=DEFAULT_LLM):
         context = "\n\n".join([d.page_content[:800] for d in docs[:3]])
         
         # Build prompt manually
-        prompt = f"""
-        You are a helpful assistant that answers based only on the provided context.
-        
-        Context:
-        {context}
-        
-        Conversation so far:
-        {chat_history[-3:] if chat_history else 'N/A'}
-        
-        Question: {query}
-        Answer:
-        """
+        if model_choice == "huggingface":
+            history_text = ""
+            if chat_history:
+                history_text = "\n".join(
+                    [f"User: {q}\nAssistant: {a}" for q, a in chat_history[-3:]]
+                )
+            
+            prompt = f"""
+            You are a concise and knowledgeable assistant.
+            Answer the user's question strictly based on the given context below.
+            
+            Context:
+            {context}
+            
+            Conversation so far:
+            {history_text if history_text else 'N/A'}
+            
+            Qeustion: {query}
+            
+            Your answer should be short, clear, and based only on the context above.
+            Answer:
+            """.strip()
+        else:
+            prompt = f"""
+            You are a helpful assistant that answers based only on the provided context.
+            
+            Context:
+            {context}
+            
+            Conversation so far:
+            {chat_history[-3:] if chat_history else 'N/A'}
+            
+            Question: {query}
+            Answer:
+            """.strip()
         
         # Generate model response
         try:
