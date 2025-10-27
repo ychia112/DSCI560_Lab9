@@ -25,8 +25,8 @@ def build_llm(model_choice=DEFAULT_LLM):
         
     elif model_choice == "llama":
         llm = LlamaCpp(
-            model_path="models/llama-2-7b-chat.ggmlv3.q4_1.bin",
-            n_ctx=1024,
+            model_path="models/llama-2-7b-chat.Q4_K_M.gguf",
+            n_ctx=4096,
             n_batch=512,
             temperature=0.2,
             repeat_penalty=1.1,
